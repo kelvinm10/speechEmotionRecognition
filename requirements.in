@@ -3,4 +3,4 @@ pandas
 librosa
 plotly
 matplotlib
-torch
+featurewiz

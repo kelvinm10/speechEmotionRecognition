@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import plotly.figure_factory as ff
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
@@ -11,6 +11,7 @@ from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import librosa
+from featurewiz import featurewiz
 
 def cont_cont_heatmap(continuous, dataframe):
     result = []
@@ -51,7 +52,7 @@ def extract_lpc(file_name):
 
 def extract_rms(file_name):
     audio, sample_rate = librosa.load(file_name)
-    rms = librosa.feature.rms(y=audio,n_rms=50 )
+    rms = librosa.feature.rms(y=audio)
     rms_processed = np.mean(rms.T, axis=1)
     print(rms_processed)
     print(len(rms_processed))
@@ -82,7 +83,7 @@ def main():
         #mfcc_holder.append(extract_mfcc(i).tolist())
         #mel_holder.append(extract_mel(i).tolist())
         #lpc_holder.append(extract_lpc(i).tolist())
-        rms_holder.append(extract_rms(i).tolist())
+        #rms_holder.append(extract_rms(i).tolist())
         #print(zero_holder)
         count += 1
 
@@ -124,15 +125,15 @@ def main():
     # lpc_df.columns = cols
     # pd.to_pickle(lpc_df,"/Volumes/Transcend/BDA600/data_models/lpc_df"  )
 
-    rms_df = pd.DataFrame(rms_holder)
-    cols = []
-    cont = 1
-    for i in range(len(rms_df.columns)):
-        cols.append("rms" + str(cont))
-        cont += 1
-
-    rms_df.columns = cols
-    pd.to_pickle(rms_df,"/Volumes/Transcend/BDA600/data_models/rms_df"  )
+    # rms_df = pd.DataFrame(rms_holder)
+    # cols = []
+    # cont = 1
+    # for i in range(len(rms_df.columns)):
+    #     cols.append("rms" + str(cont))
+    #     cont += 1
+    #
+    # rms_df.columns = cols
+    # pd.to_pickle(rms_df,"/Volumes/Transcend/BDA600/data_models/rms_df")
 
     lpc_df = pd.read_pickle("/Volumes/Transcend/BDA600/data_models/lpc_df")
     mel_df = pd.read_pickle("/Volumes/Transcend/BDA600/data_models/mel_df")
@@ -142,26 +143,52 @@ def main():
     #print(mfcc_df.head().to_string())
 
     mfcc_df = mfcc_df[(mfcc_df["class"] != 6) & (mfcc_df["class"] != 7)& (mfcc_df["class"] != 4)& (mfcc_df["class"] != 3)]
+    class_res = []
+    for i in mfcc_df["class"]:
+        if i == 5:
+            class_res.append(3)
+        else:
+            class_res.append(i)
+    mfcc_df["class"] = class_res
+    print("class counts: ", mfcc_df["class"].value_counts())
     #print(mfcc_df.head().to_string())
+    print(len(mfcc_df))
+    print(mfcc_df.columns)
 
 
 
 
 
-    feature_df = main_df[main_df.columns[3:]]
-    x_features = feature_df[feature_df.columns[:-1]]
-    #feature_list = [x for x in mfcc_df.columns if x != "class"]
-    #print(np.any(np.isnan(mfcc_df["mel1"])))
+    #feature_df = main_df[main_df.columns[3:]]
+   # x_features = feature_df[feature_df.columns[:-1]]
+    feature_list = [x for x in mfcc_df.columns if x != "class"]
 
-    # #print(feature_list[:70])
-    # x_features = mfcc_df[feature_list]
-    # #x_features = x_features[[x for x in x_features.columns[:14]]]
-    # x_features["mean_zero"] = mfcc_df["mean_zero"].values
-    # subset = list(x_features.columns[:14])
-    # subset2 = list(x_features.columns[40:61])
-    # subset3 = list(x_features.columns[91:])
-    # x_features = x_features[subset+subset2]
-    # print(x_features.columns)
+    #print(feature_list[:70])
+    x_features = mfcc_df[feature_list]
+    #x_features = x_features[[x for x in x_features.columns[:14]]]
+    x_features["mean_zero"] = mfcc_df["mean_zero"].values
+    subset = list(x_features.columns[:14])
+    subset2 = list(x_features.columns[40:61])
+    subset3 = list(x_features.columns[91:])
+    x_features = x_features[subset+subset2+subset3]
+    #print("columns: ", x_features.columns)
+    full_df = x_features
+    full_df["target"] = mfcc_df["class"]
+
+
+    #features, data = featurewiz(full_df, target="target", feature_engg="interactions", verbose=0)
+
+    #pd.to_pickle(data, "/Volumes/Transcend/BDA600/data_models/feature_engineered_df")
+
+   # data = pd.read_pickle("/Volumes/Transcend/BDA600/data_models/feature_engineered_df")
+
+
+    x_features = full_df[full_df.columns[:-1]]
+    print("columns: ", x_features.columns)
+    # print(x_features.shape)
+    #x_features = x_features.dropna()
+    #data = data.dropna()
+
 
     #print(x_features.head().to_string())
 
@@ -171,16 +198,18 @@ def main():
     #cont_cont_heatmap(col, x_features)
 
     # get target variable
-    target = main_df["emotion_mapped"]
-    #target = mfcc_df["class"]
+    #target = main_df["emotion_mapped"]
+    target = full_df["target"]
+
+    # create a train test split
+    x_train, x_test, y_train, y_test = train_test_split(x_features, target.values, test_size=0.2, random_state=42)
 
     # standardize x_features using standard scaler
     scaler = StandardScaler()
-    x_features_scaled = scaler.fit_transform(x_features)
+    x_features_scaled = scaler.fit_transform(x_train)
 
     #print(x_features.values)
-    # create a train test split
-    x_train, x_test, y_train, y_test = train_test_split(x_features_scaled, target.values, test_size=0.2, random_state=42)
+
 
     # implement 5 fold cross validation
     kf = KFold(n_splits=5)
@@ -192,9 +221,8 @@ def main():
     acc_score = []
     acc_score_svc = []
     acc_score_forest = []
-    for train_index, test_index in kf.split(x_train):
-        #print(kf.split(x_train))
-        curr_X_train, curr_X_test = x_train[train_index, :], x_train[test_index, :]
+    for train_index, test_index in kf.split(x_features_scaled):
+        curr_X_train, curr_X_test = x_features_scaled[train_index, :], x_features_scaled[test_index, :]
         curr_y_train, curr_y_test = y_train[train_index], y_train[test_index]
 
         print("fitting tree")
@@ -221,8 +249,17 @@ def main():
 
     forest.fit(x_train, y_train)
     feature_importances = forest.feature_importances_
+    importance = []
+    feature = []
     for i in range(len(feature_importances)):
-        print(feature_importances[i], x_features.columns[i])
+        #print(feature_importances[i], x_features.columns[i])
+        feature.append(x_features.columns[i])
+        importance.append(feature_importances[i])
+
+    feature_dict = {"Features":feature, "Importance":importance}
+    feature_importance_df = pd.DataFrame(feature_dict)
+    print(feature_importance_df.sort_values(by="Importance", ascending=False))
+
     y_pred = forest.predict(x_test)
     print("test acc: ", accuracy_score(y_test, y_pred))
 
