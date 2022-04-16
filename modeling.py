@@ -4,14 +4,14 @@ from scipy import stats
 import plotly.figure_factory as ff
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import librosa
 from featurewiz import featurewiz
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import RandomizedSearchCV, train_test_split, KFold
 
 def cont_cont_heatmap(continuous, dataframe):
     result = []
@@ -33,7 +33,6 @@ def extract_mfcc(file_name):
     audio, sample_rate = librosa.load(file_name)
     mfccs = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=50)
     mfccs_processed = np.mean(mfccs.T, axis=0)
-    #print(len(mfccs_processed))
     return mfccs_processed
 
 def extract_mel(file_name):
@@ -41,28 +40,110 @@ def extract_mel(file_name):
     mel = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels = 50, power=1)
     mel_processed = np.mean(mel.T, axis=0)
     #mel_processed = np.log(mel_processed)
-    print(len(mel_processed))
+
     return mel_processed
 
 def extract_lpc(file_name):
     audio, sample_rate = librosa.load(file_name)
     lpc = librosa.lpc(audio,order=12)
-    print(len(lpc))
+
     return lpc
 
 def extract_rms(file_name):
     audio, sample_rate = librosa.load(file_name)
     rms = librosa.feature.rms(y=audio)
     rms_processed = np.mean(rms.T, axis=1)
-    print(rms_processed)
-    print(len(rms_processed))
+
     return rms_processed
 
+def extract_zero(file_name):
+    audio, sample_rate = librosa.load(file_name)
+    zero = librosa.feature.zero_crossing_rate(y=audio)
+    mean_zero = np.mean(zero)
+    return mean_zero
+
+
+# this function will take in a pretrained model, audio file, and fitted scaler to provide a
+# prediction for a single audio file. Will be used in the app.py file
+
+#PARAMETERS:
+# Model: pretrained model to use to predict
+# features: list of features in the original model
+# audio_file: file to predict
+# scaler: std or minmax scaler
+def prediction_service(model, features, audio_file, scaler):
+    # first need to extract all of the relevant features included in the trained model
+    # (contained in "Classification_Models" directory
+    mfcc_holder = extract_mfcc(audio_file)
+    mel_holder = extract_mel(audio_file)
+    lpc_holder = extract_lpc(audio_file)
+    rms_holder = extract_rms(audio_file)
+    zero_holder = extract_zero(audio_file)
+
+    mfcc_df = pd.DataFrame([mfcc_holder])
+    curr = 1
+    mfcc_cols = []
+    for i in range(len(mfcc_df.columns)):
+        mfcc_cols.append("mfcc" + str(curr))
+        curr += 1
+
+    mfcc_df.columns = mfcc_cols
+
+    mel_df = pd.DataFrame([mel_holder])
+    curr = 1
+    mel_cols = []
+    for i in range(len(mel_df.columns)):
+        mel_cols.append("mel" + str(curr))
+        curr += 1
+
+    mel_df.columns = mel_cols
+
+    lpc_df = pd.DataFrame([lpc_holder])
+    curr = 1
+    lpc_cols = []
+    for i in range(len(lpc_df.columns)):
+        lpc_cols.append("lpc" + str(curr))
+        curr += 1
+
+    lpc_df.columns = lpc_cols
+
+    rms_df = pd.DataFrame([rms_holder])
+    curr = 1
+    rms_cols = []
+    for i in range(len(rms_df.columns)):
+        rms_cols.append("rms" + str(curr))
+        curr += 1
+
+    rms_df.columns = rms_cols
+
+    final_df = pd.concat([mfcc_df.reset_index(drop=True),mel_df.reset_index(drop=True),
+                          lpc_df.reset_index(drop=True), rms_df.reset_index(drop=True)], axis=1)
+
+    final_df["mean_zero"] = zero_holder
+
+    final_df = final_df[features]
+
+
+    # next, need to scale the new observation using the fitted scaler (transform)
+    x = scaler.transform(final_df.values)
+
+    #lastly, return the prediction using the model.
+    yhat = model.predict(x)
+    emotion_map = {"happy": 0, "sad": 1, "angry": 2,  "neutral": 3}
+
+    return list(emotion_map.keys())[list(emotion_map.values()).index(yhat[0])]
 
 
 def main():
+
     df_path ="/Volumes/Transcend/BDA600/data_models/"
     main_df = pd.read_pickle(df_path + "main_df.pkl")
+    # mfcc, mel, lpc, rms, zero = prediction_service(None, None, main_df["path"][0], None)
+    # print("mfcc:", mfcc)
+    # print("mel", mel)
+    # print("lpc", lpc)
+    # print("rms", rms)
+    # print("zero", zero)
 
     emotion_map = {"happy":0, "sad":1, "angry":2, "fearful":3, "disgust":4, "neutral":5,
                    "surprised":6, "calm":7}
@@ -79,7 +160,7 @@ def main():
     rms_holder = []
     count = 0
     for i in main_df["path"]:
-        print(count/len(main_df)*100)
+        #print(count/len(main_df)*100)
         #mfcc_holder.append(extract_mfcc(i).tolist())
         #mel_holder.append(extract_mel(i).tolist())
         #lpc_holder.append(extract_lpc(i).tolist())
@@ -176,19 +257,32 @@ def main():
     full_df["target"] = mfcc_df["class"]
 
 
-    #features, data = featurewiz(full_df, target="target", feature_engg="interactions", verbose=0)
+    features, data = featurewiz(full_df, target="target", feature_engg="", verbose=0)
 
     #pd.to_pickle(data, "/Volumes/Transcend/BDA600/data_models/feature_engineered_df")
 
-   # data = pd.read_pickle("/Volumes/Transcend/BDA600/data_models/feature_engineered_df")
+    #data = pd.read_pickle("/Volumes/Transcend/BDA600/data_models/feature_engineered_df")
+    drop_cols = []
+    for i in data.columns:
+        if data[i].isna().sum() > 0:
+            print(i + " has null values, dropping...")
+            drop_cols.append(i)
+
+    data = data.drop(drop_cols, axis=1)
 
 
-    x_features = full_df[full_df.columns[:-1]]
-    print("columns: ", x_features.columns)
+
+    #x_features = full_df[full_df.columns[:-1]]
+    #print("columns: ", x_features.columns)
     # print(x_features.shape)
     #x_features = x_features.dropna()
     #data = data.dropna()
 
+
+    x_features = data.loc[:, data.columns != "target"]
+    print(x_features.columns)
+    #x_features = x_features.dropna()
+    #data = data.dropna()
 
     #print(x_features.head().to_string())
 
@@ -199,14 +293,22 @@ def main():
 
     # get target variable
     #target = main_df["emotion_mapped"]
-    target = full_df["target"]
+    target = data["target"]
 
     # create a train test split
     x_train, x_test, y_train, y_test = train_test_split(x_features, target.values, test_size=0.2, random_state=42)
 
     # standardize x_features using standard scaler
     scaler = StandardScaler()
-    x_features_scaled = scaler.fit_transform(x_train)
+    scaler_min = MinMaxScaler()
+    scaler.fit(x_train)
+    scaler_min.fit(x_train)
+
+    x_train_std = pd.DataFrame(scaler.transform(x_train))
+    x_train_min = pd.DataFrame(scaler_min.transform(x_train))
+
+    x_test_std = pd.DataFrame(scaler.transform(x_test))
+    x_test_min = pd.DataFrame(scaler_min.transform(x_test))
 
     #print(x_features.values)
 
@@ -216,56 +318,90 @@ def main():
 
     tree = DecisionTreeClassifier()
     svc = SVC(kernel = 'linear')
-    forest = RandomForestClassifier()
+    forest = RandomForestClassifier(n_jobs=-1)
+    nn = MLPClassifier()
 
     acc_score = []
     acc_score_svc = []
     acc_score_forest = []
-    for train_index, test_index in kf.split(x_features_scaled):
-        curr_X_train, curr_X_test = x_features_scaled[train_index, :], x_features_scaled[test_index, :]
-        curr_y_train, curr_y_test = y_train[train_index], y_train[test_index]
+    acc_score_nn = []
+    forest_params = {"n_estimators":[100,200,300],
+                     "criterion":["genie","entropy"],
+                     "max_depth":[None, 10, 50],
+                     "bootstrap":[True, False]
+                     }
+    forest_search = RandomizedSearchCV(forest, param_distributions=forest_params, cv=5, n_jobs=-1,
+                                       n_iter=70, random_state=100)
+    # forest_search.fit(x_train_std, y_train)
+   # best_random = forest_search.best_estimator_
+    #yhat = best_random.predict(x_test_std)
 
-        print("fitting tree")
-        tree.fit(curr_X_train, curr_y_train)
-        print("fitting svc")
-        #svc.fit(curr_X_train, curr_y_train)
-        print("fitting forest")
-        forest.fit(curr_X_train, curr_y_train)
-        pred_values = tree.predict(curr_X_test)
-        #pred_values_svc = svc.predict(curr_X_test)
-        pred_values_forest = forest.predict(curr_X_test)
+    #print("Accuracy: ", accuracy_score(y_test, yhat))
 
-        acc = accuracy_score(curr_y_test, pred_values)
-        #acc_svc = accuracy_score(curr_y_test, pred_values_svc)
-        acc_forest = accuracy_score(curr_y_test, pred_values_forest)
-
-        acc_score.append(acc)
-        #acc_score_svc.append(acc_svc)
-        acc_score_forest.append(acc_forest)
-
-    print(acc_score)
-    #print(acc_score_svc)
-    print(acc_score_forest)
-
-    forest.fit(x_train, y_train)
-    feature_importances = forest.feature_importances_
-    importance = []
-    feature = []
-    for i in range(len(feature_importances)):
-        #print(feature_importances[i], x_features.columns[i])
-        feature.append(x_features.columns[i])
-        importance.append(feature_importances[i])
-
-    feature_dict = {"Features":feature, "Importance":importance}
-    feature_importance_df = pd.DataFrame(feature_dict)
-    print(feature_importance_df.sort_values(by="Importance", ascending=False))
-
-    y_pred = forest.predict(x_test)
-    print("test acc: ", accuracy_score(y_test, y_pred))
+    #writing model and list of selected features to a pickle file in "Classification_Models directory
+    #pd.to_pickle(best_random, "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
+    #pd.to_pickle(features,"/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl" )
+    best_random = pd.read_pickle("/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
+    features = pd.read_pickle("/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl")
+    pd.to_pickle(scaler,"/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/scaler.pkl" )
 
 
 
 
+    # for train_index, test_index in kf.split(x_features_scaled):
+    #     curr_X_train, curr_X_test = x_features_scaled[train_index, :], x_features_scaled[test_index, :]
+    #     curr_y_train, curr_y_test = y_train[train_index], y_train[test_index]
+    #
+    #     print("fitting tree")
+    #     tree.fit(curr_X_train, curr_y_train)
+    #     print("fitting NN")
+    #     nn.fit(curr_X_train, curr_y_train)
+    #     print("fitting forest")
+    #     forest.fit(curr_X_train, curr_y_train)
+    #     pred_values = tree.predict(curr_X_test)
+    #     pred_values_nn = nn.predict(curr_X_test)
+    #     pred_values_forest = forest.predict(curr_X_test)
+    #
+    #     acc = accuracy_score(curr_y_test, pred_values)
+    #     acc_nn = accuracy_score(curr_y_test, pred_values_nn)
+    #     acc_forest = accuracy_score(curr_y_test, pred_values_forest)
+    #
+    #     acc_score.append(acc)
+    #     acc_score_nn.append(acc_nn)
+    #     acc_score_forest.append(acc_forest)
+    #
+    # print(acc_score)
+    # print('NN', acc_score_nn)
+    # print(acc_score_forest)
+
+    # forest.fit(x_train_std, y_train)
+    # print("fitting NN")
+    # nn.fit(x_train_std, y_train)
+    # feature_importances = forest.feature_importances_
+    # importance = []
+    # feature = []
+    # for i in range(len(feature_importances)):
+    #     #print(feature_importances[i], x_features.columns[i])
+    #     feature.append(x_features.columns[i])
+    #     importance.append(feature_importances[i])
+    #
+    # feature_dict = {"Features":feature, "Importance":importance}
+    # feature_importance_df = pd.DataFrame(feature_dict)
+    # print(feature_importance_df.sort_values(by="Importance", ascending=False))
+    #
+    # y_pred = forest.predict(x_test_std)
+    # y_pred_nn = nn.predict(x_test_std)
+    # print("forest test acc std: ", accuracy_score(y_test, y_pred))
+    # print("NN test acc std: ", accuracy_score(y_test, y_pred_nn))
+    #
+    # forest.fit(x_train_min, y_train)
+    # print("fitting NN min")
+    # nn.fit(x_train_min, y_train)
+    #
+    # y_pred = forest.predict(x_test_min)
+    # y_pred_nn = nn.predict(x_test_min)
+    # print("forest test acc min: ", accuracy_score(y_test, y_pred))
+    # print("NN test acc min: ", accuracy_score(y_test, y_pred_nn))
 
 
 

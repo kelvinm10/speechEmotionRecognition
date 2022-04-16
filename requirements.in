@@ -4,3 +4,9 @@ librosa
 plotly
 matplotlib
 featurewiz
+streamlit
+PyAudio
+flask
+SpeechRecognition
+gunicorn
+pytest
