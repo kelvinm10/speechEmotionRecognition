@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, redirect
 from modeling import prediction_service
-import pandas as pd
 import os
+from io import BytesIO
+import pickle
+import requests
 
 app = Flask(__name__)
 
@@ -9,12 +11,25 @@ app = Flask(__name__)
 @app.route("/", methods=["GET", "POST"])
 def index():
     transcript = ""
-    model = pd.read_pickle(
-        "/Classification_Models/random_forest.pkl")
-    scaler = pd.read_pickle(
-        "/Classification_Models/scaler.pkl")
-    features = pd.read_pickle(
-        "/Classification_Models/features.pkl")
+    features_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/features.pkl?raw=true"
+    model_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/random_forest.pkl?raw=true"
+    scaler_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/scaler.pkl?raw=true"
+
+    mfile_features = BytesIO(requests.get(features_url).content)
+    mfile_model = BytesIO(requests.get(model_url).content)
+    mfile_scaler = BytesIO(requests.get(scaler_url).content)
+
+    features = pickle.load(mfile_features)
+    model = pickle.load(mfile_model)
+    scaler = pickle.load(mfile_scaler)
+
+
+    # model = pd.read_pickle(
+    #     "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
+    # scaler = pd.read_pickle(
+    #     "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/scaler.pkl")
+    # features = pd.read_pickle(
+    #     "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl")
 
     uploads_dir = os.path.join(app.instance_path, 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
