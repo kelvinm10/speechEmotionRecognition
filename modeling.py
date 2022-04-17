@@ -5,11 +5,11 @@ import plotly.figure_factory as ff
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import multilabel_confusion_matrix
+#from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import librosa
-from featurewiz import featurewiz
+#from featurewiz import featurewiz
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import RandomizedSearchCV, train_test_split, KFold
 
@@ -268,7 +268,10 @@ def main():
     print(x_features.columns)
 
 
-    features, data = featurewiz(full_df, target="target", feature_engg="", verbose=0)
+    #features, data = featurewiz(full_df, target="target", feature_engg="", verbose=0)
+    features = pd.read_pickle("/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl")
+    data = full_df[features]
+    data["target"] = full_df["target"]
 
     #pd.to_pickle(data, "/Volumes/Transcend/BDA600/data_models/feature_engineered_df")
 
