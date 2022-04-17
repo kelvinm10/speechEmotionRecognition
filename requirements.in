@@ -3,3 +3,5 @@ pandas
 librosa
 flask
 gunicorn
+plotly
+featurewiz
