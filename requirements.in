@@ -4,4 +4,4 @@ librosa
 flask
 gunicorn
 plotly
-pysndfile
+soundfile
