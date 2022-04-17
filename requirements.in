@@ -4,4 +4,3 @@ librosa
 flask
 gunicorn
 plotly
-soundfile
