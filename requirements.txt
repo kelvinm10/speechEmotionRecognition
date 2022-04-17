@@ -50,6 +50,7 @@ numpy==1.21.5
     #   librosa
     #   numba
     #   pandas
+    #   pysndfile
     #   resampy
     #   scikit-learn
     #   scipy
@@ -67,6 +68,8 @@ pycparser==2.21
     # via cffi
 pyparsing==3.0.7
     # via packaging
+pysndfile==1.4.4
+    # via -r requirements.in
 python-dateutil==2.8.2
     # via pandas
 pytz==2021.3
