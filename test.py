@@ -15,6 +15,7 @@ features = pd.read_pickle("/Users/KelvinM/src/BDA600project/speechEmotionRecogni
 
 
 count = 0
+idx = 0
 for i in range(len(main_df)):
     true = main_df["emotion"][i]
     pred = prediction_service(model, features, main_df["path"][i], scaler)
@@ -22,8 +23,18 @@ for i in range(len(main_df)):
     print("Predicted: ", pred)
 
     if true == pred:
+        print("correct")
         count += 1
+    idx += 1
 
-print(count / len(main_df))
+    percentage = (idx / (len(main_df))) *100
+    print(percentage)
+
+    if percentage > 10:
+        break
+
+    print("running accuracy: ", count/idx)
+
+print(count / idx)
 
 

@@ -37,7 +37,7 @@ def extract_mfcc(file_name):
 
 def extract_mel(file_name):
     audio, sample_rate = librosa.load(file_name)
-    mel = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels = 50, power=1)
+    mel = librosa.feature.melspectrogram(y=audio, sr=sample_rate, n_mels = 50)
     mel_processed = np.mean(mel.T, axis=0)
     #mel_processed = np.log(mel_processed)
 
@@ -123,14 +123,22 @@ def prediction_service(model, features, audio_file, scaler):
 
     final_df = final_df[features]
 
+    # print("True Columns: ", final_df.columns.tolist())
+    # print("Desired Order: ", features)
+    #
+    # print("Passing the Following into Scaler: ", final_df)
+
+
 
     # next, need to scale the new observation using the fitted scaler (transform)
-    x = scaler.transform(final_df.values)
+    x = pd.DataFrame(scaler.transform(final_df))
+    #print("result from scaler: ", x)
 
     #lastly, return the prediction using the model.
     yhat = model.predict(x)
     emotion_map = {"happy": 0, "sad": 1, "angry": 2,  "neutral": 3}
-
+    # print("raw prediction: ", yhat)
+    # print("emotion prediction: ", list(emotion_map.keys())[list(emotion_map.values()).index(yhat[0])])
     return list(emotion_map.keys())[list(emotion_map.values()).index(yhat[0])]
 
 
@@ -149,26 +157,27 @@ def main():
                    "surprised":6, "calm":7}
     mapped = [emotion_map[i] for i in main_df["emotion"]]
     main_df["emotion_mapped"] = mapped
+
     # testing to see if droppiong these labels creates better results
     #main_df = main_df[(main_df["emotion_mapped"] != 6) & (main_df["emotion_mapped"] != 7)]
 
 
     # create new dataframe which gets first 40 mfcc values in audio file
-    mfcc_holder = []
-    mel_holder = []
-    lpc_holder = []
-    rms_holder = []
-    count = 0
-    for i in main_df["path"]:
-        #print(count/len(main_df)*100)
-        #mfcc_holder.append(extract_mfcc(i).tolist())
-        #mel_holder.append(extract_mel(i).tolist())
-        #lpc_holder.append(extract_lpc(i).tolist())
-        #rms_holder.append(extract_rms(i).tolist())
-        #print(zero_holder)
-        count += 1
-
-    # create this datafraem
+    # mfcc_holder = []
+    # mel_holder = []
+    # lpc_holder = []
+    # rms_holder = []
+    #count = 0
+    #for i in main_df["path"]:
+    #    print(count/len(main_df)*100)
+    #     mfcc_holder.append(extract_mfcc(i).tolist())
+    #    mel_holder.append(extract_mel(i).tolist())
+    #     lpc_holder.append(extract_lpc(i).tolist())
+    #     #rms_holder.append(extract_rms(i).tolist())
+    #     #print(zero_holder)
+    #    count += 1
+    #
+    # # create this datafraem
     # mfcc_df = pd.DataFrame(mfcc_holder)
     # pd.to_pickle(mfcc_df, "/Volumes/Transcend/BDA600/data_models/mfcc_df")
     #
@@ -181,10 +190,10 @@ def main():
     #
     #
     # mfcc_df.columns = column_names
-    # mfcc_df["zero_crossing"] = zero_holder
+    # #mfcc_df["zero_crossing"] = zero_holder
     # mfcc_df["class"] = main_df["emotion_mapped"].values
     # pd.to_pickle(mfcc_df, "/Volumes/Transcend/BDA600/data_models/mfcc_df")
-
+    #
     mfcc_df = pd.read_pickle("/Volumes/Transcend/BDA600/data_models/mfcc_df")
     mfcc_df["mean_zero"] = main_df["mean_zero"].values
     # mel_df = pd.DataFrame(mel_holder)
@@ -195,7 +204,7 @@ def main():
     #     cont += 1
     # mel_df.columns = cols
     # pd.to_pickle(mel_df,"/Volumes/Transcend/BDA600/data_models/mel_df" )
-
+    #
     # lpc_df = pd.DataFrame(lpc_holder)
     # cols = []
     # cont = 1
@@ -256,6 +265,8 @@ def main():
     full_df = x_features
     full_df["target"] = mfcc_df["class"]
 
+    print(x_features.columns)
+
 
     features, data = featurewiz(full_df, target="target", feature_engg="", verbose=0)
 
@@ -280,7 +291,8 @@ def main():
 
 
     x_features = data.loc[:, data.columns != "target"]
-    print(x_features.columns)
+    print(x_features.columns.tolist())
+    print(features)
     #x_features = x_features.dropna()
     #data = data.dropna()
 
@@ -295,8 +307,13 @@ def main():
     #target = main_df["emotion_mapped"]
     target = data["target"]
 
+    #print(x_features)
+
     # create a train test split
     x_train, x_test, y_train, y_test = train_test_split(x_features, target.values, test_size=0.2, random_state=42)
+
+    #print("x_train: ", x_train.loc[0])
+    #print("x_features: ", x_features)
 
     # standardize x_features using standard scaler
     scaler = StandardScaler()
@@ -304,8 +321,11 @@ def main():
     scaler.fit(x_train)
     scaler_min.fit(x_train)
 
+    print("passing following into scaler: ", x_train)
+
     x_train_std = pd.DataFrame(scaler.transform(x_train))
     x_train_min = pd.DataFrame(scaler_min.transform(x_train))
+    print("scaler result: ", x_train_std)
 
     x_test_std = pd.DataFrame(scaler.transform(x_test))
     x_test_min = pd.DataFrame(scaler_min.transform(x_test))
@@ -332,18 +352,29 @@ def main():
                      }
     forest_search = RandomizedSearchCV(forest, param_distributions=forest_params, cv=5, n_jobs=-1,
                                        n_iter=70, random_state=100)
-    # forest_search.fit(x_train_std, y_train)
-   # best_random = forest_search.best_estimator_
-    #yhat = best_random.predict(x_test_std)
+    forest_search.fit(x_train_std, y_train)
+    best_random = forest_search.best_estimator_
+    yhat = best_random.predict(x_test_std)
 
-    #print("Accuracy: ", accuracy_score(y_test, yhat))
+    print(y_test)
+    print(yhat)
+
+    print("Accuracy: ", accuracy_score(y_test, yhat))
+    count = 0
+    for i in range(len(y_test)):
+        if y_test[i] == yhat[i]:
+            count += 1
+
+    print(count/len(y_test))
+
 
     #writing model and list of selected features to a pickle file in "Classification_Models directory
-    #pd.to_pickle(best_random, "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
-    #pd.to_pickle(features,"/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl" )
+    pd.to_pickle(best_random, "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
+    pd.to_pickle(features,"/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl" )
     best_random = pd.read_pickle("/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
     features = pd.read_pickle("/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl")
-    pd.to_pickle(scaler,"/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/scaler.pkl" )
+    pd.to_pickle(scaler,"/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/scaler.pkl")
+
 
 
 
