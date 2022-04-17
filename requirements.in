@@ -1,7 +1,5 @@
 numpy
 pandas
 librosa
-plotly
-featurewiz
 flask
 gunicorn
