@@ -10,11 +10,11 @@ app = Flask(__name__)
 def index():
     transcript = ""
     model = pd.read_pickle(
-        "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
+        "/Classification_Models/random_forest.pkl")
     scaler = pd.read_pickle(
-        "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/scaler.pkl")
+        "/Classification_Models/scaler.pkl")
     features = pd.read_pickle(
-        "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/features.pkl")
+        "/Classification_Models/features.pkl")
 
     uploads_dir = os.path.join(app.instance_path, 'uploads')
     os.makedirs(uploads_dir, exist_ok=True)
