@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect
-import speech_recognition as sr
 from modeling import prediction_service
 import pandas as pd
 import os
