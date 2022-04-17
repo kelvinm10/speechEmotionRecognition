@@ -2,8 +2,6 @@ numpy
 pandas
 librosa
 plotly
-matplotlib
 featurewiz
 flask
 gunicorn
-pytest
