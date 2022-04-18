@@ -51,13 +51,13 @@ def index():
             return redirect(request.url)
 
         file = request.files["file"]
-        file.save(os.path.join(uploads_dir, file.filename))
         # saves to /Users/KelvinM/src/BDA600project/speechEmotionRecognition/instance/uploads/
 
         if file.filename == "":
             return redirect(request.url)
 
         if file:
+            file.save(os.path.join(uploads_dir, file.filename))
             transcript = prediction_service(model, features, os.path.join(uploads_dir, file.filename), scaler)
             os.remove(os.path.join(uploads_dir, file.filename)) #clean up and delete once done
 
