@@ -7,22 +7,33 @@ import requests
 
 app = Flask(__name__)
 
-features_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/features.pkl?raw=true"
-model_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/random_forest.pkl?raw=true"
-scaler_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/scaler.pkl?raw=true"
-
-mfile_features = BytesIO(requests.get(features_url).content)
-mfile_model = BytesIO(requests.get(model_url).content)
-mfile_scaler = BytesIO(requests.get(scaler_url).content)
-
-features = pickle.load(mfile_features)
-model = pickle.load(mfile_model)
-scaler = pickle.load(mfile_scaler)
+# features_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/features.pkl?raw=true"
+# model_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/random_forest.pkl?raw=true"
+# scaler_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/scaler.pkl?raw=true"
+#
+# mfile_features = BytesIO(requests.get(features_url).content)
+# mfile_model = BytesIO(requests.get(model_url).content)
+# mfile_scaler = BytesIO(requests.get(scaler_url).content)
+#
+# features = pickle.load(mfile_features)
+# model = pickle.load(mfile_model)
+# scaler = pickle.load(mfile_scaler)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     transcript = ""
 
+    features_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/features.pkl?raw=true"
+    model_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/random_forest.pkl?raw=true"
+    scaler_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/scaler.pkl?raw=true"
+
+    mfile_features = BytesIO(requests.get(features_url).content)
+    mfile_model = BytesIO(requests.get(model_url).content)
+    mfile_scaler = BytesIO(requests.get(scaler_url).content)
+
+    features = pickle.load(mfile_features)
+    model = pickle.load(mfile_model)
+    scaler = pickle.load(mfile_scaler)
 
     # model = pd.read_pickle(
     #     "/Users/KelvinM/src/BDA600project/speechEmotionRecognition/Classification_Models/random_forest.pkl")
