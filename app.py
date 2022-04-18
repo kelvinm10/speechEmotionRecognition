@@ -59,6 +59,8 @@ def index():
 
         if file:
             transcript = prediction_service(model, features, os.path.join(uploads_dir, file.filename), scaler)
+            os.remove(os.path.join(uploads_dir, file.filename)) #clean up and delete once done
+
 
 
     return render_template('index.html', transcript=transcript)
