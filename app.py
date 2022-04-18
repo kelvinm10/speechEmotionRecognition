@@ -22,17 +22,6 @@ scaler = pickle.load(mfile_scaler)
 @app.route("/", methods=["GET", "POST"])
 def index():
     transcript = ""
-    # features_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/features.pkl?raw=true"
-    # model_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/random_forest.pkl?raw=true"
-    # scaler_url = "https://github.com/kelvinm10/speechEmotionRecognition/blob/kelvinsBranch/Classification_Models/scaler.pkl?raw=true"
-    #
-    # mfile_features = BytesIO(requests.get(features_url).content)
-    # mfile_model = BytesIO(requests.get(model_url).content)
-    # mfile_scaler = BytesIO(requests.get(scaler_url).content)
-    #
-    # features = pickle.load(mfile_features)
-    # model = pickle.load(mfile_model)
-    # scaler = pickle.load(mfile_scaler)
 
 
     # model = pd.read_pickle(
@@ -52,18 +41,12 @@ def index():
 
         file = request.files["file"]
         file.save(os.path.join(uploads_dir, file.filename))
-        #saves to /Users/KelvinM/src/BDA600project/speechEmotionRecognition/instance/uploads/
-        # need to test if this will work for anyone who wants to run this app
+        # saves to /Users/KelvinM/src/BDA600project/speechEmotionRecognition/instance/uploads/
+
         if file.filename == "":
             return redirect(request.url)
 
         if file:
-            # recognizer = sr.Recognizer()
-            # audioFile = sr.AudioFile(file)
-            # with audioFile as source:
-            #     data = recognizer.record(source)
-            # transcript = recognizer.recognize_google(data, key=None)
-            #print(os.path.join(uploads_dir, file.filename))
             transcript = prediction_service(model, features, os.path.join(uploads_dir, file.filename), scaler)
 
 
