@@ -251,7 +251,7 @@ def main():
     # fig = px.histogram(processed_df, "emotion")
     # fig.show()
 
-    # create_wave_graph(processed_df, ["happy", "sad", "neutral"], 15)
+    create_wave_graph(main_df, [ "angry"], 20)
 
 
     print(main_df.head())

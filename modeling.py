@@ -5,10 +5,12 @@ import plotly.figure_factory as ff
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
-#from sklearn.metrics import multilabel_confusion_matrix
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 import librosa
+import matplotlib.pyplot as plt
+import seaborn as sn
 #from featurewiz import featurewiz
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import RandomizedSearchCV, train_test_split, KFold
@@ -246,12 +248,14 @@ def main():
     print(len(mfcc_df))
     print(mfcc_df.columns)
 
+    #pd.to_pickle(mfcc_df, "/Volumes/Transcend/BDA600/data_models/entire_df")
 
 
 
 
-    #feature_df = main_df[main_df.columns[3:]]
-   # x_features = feature_df[feature_df.columns[:-1]]
+
+    feature_df = main_df[main_df.columns[3:]]
+    x_features = feature_df[feature_df.columns[:-1]]
     feature_list = [x for x in mfcc_df.columns if x != "class"]
 
     #print(feature_list[:70])
@@ -325,11 +329,11 @@ def main():
     scaler.fit(x_train)
     scaler_min.fit(x_train)
 
-    print("passing following into scaler: ", x_train)
+    #print("passing following into scaler: ", x_train)
 
     x_train_std = pd.DataFrame(scaler.transform(x_train))
     x_train_min = pd.DataFrame(scaler_min.transform(x_train))
-    print("scaler result: ", x_train_std)
+   #print("scaler result: ", x_train_std)
 
     x_test_std = pd.DataFrame(scaler.transform(x_test))
     x_test_min = pd.DataFrame(scaler_min.transform(x_test))
@@ -340,36 +344,104 @@ def main():
     # implement 5 fold cross validation
     kf = KFold(n_splits=5)
 
-    tree = DecisionTreeClassifier()
-    svc = SVC(kernel = 'linear')
+    #tree = DecisionTreeClassifier()
+    #svc = SVC(kernel = 'linear')
     forest = RandomForestClassifier(n_jobs=-1)
-    nn = MLPClassifier()
+    #nn = MLPClassifier()
 
-    acc_score = []
-    acc_score_svc = []
+    #acc_score = []
+    #acc_score_svc = []
     acc_score_forest = []
-    acc_score_nn = []
+    #acc_score_nn = []
     forest_params = {"n_estimators":[100,200,300],
-                     "criterion":["genie","entropy"],
+                     "criterion":["gini","entropy"],
                      "max_depth":[None, 10, 50],
                      "bootstrap":[True, False]
                      }
-    forest_search = RandomizedSearchCV(forest, param_distributions=forest_params, cv=5, n_jobs=-1,
-                                       n_iter=70, random_state=100)
+    forest_search = RandomizedSearchCV(forest, param_distributions=forest_params, cv=5, n_jobs=-1, random_state=100)
     forest_search.fit(x_train_std, y_train)
     best_random = forest_search.best_estimator_
     yhat = best_random.predict(x_test_std)
 
-    print(y_test)
-    print(yhat)
+    #tree_params = { "criterion": ["gini", "entropy"],
+     #                "max_depth": [None, 10, 50],
+     #               "splitter": ["best", "random"]
+     #                }
+    #print("fitting tree")
+    #tree_search = RandomizedSearchCV(tree, param_distributions=tree_params, cv=5, n_jobs=-1, random_state=100)
+    #tree_search.fit(x_train_std, y_train)
+    #tree_yhat = tree_search.best_estimator_.predict(x_test_std)
 
-    print("Accuracy: ", accuracy_score(y_test, yhat))
-    count = 0
-    for i in range(len(y_test)):
-        if y_test[i] == yhat[i]:
-            count += 1
 
-    print(count/len(y_test))
+    #svc_params = { "C": [0.1, 0.01, 1, 10],
+      #             "kernel": ["linear", "rbf", "poly", "sigmoid"],
+       #            "degree": [1,2,3],
+      #             "gamma":['scale','auto']
+        #           }
+   # print("fitting svc")
+    #svc_search = RandomizedSearchCV(svc, param_distributions=svc_params, cv=5, n_jobs=-1, random_state=100)
+    #svc_search.fit(x_train_std, y_train)
+    #svc_yhat = svc_search.best_estimator_.predict(x_test_std)
+
+
+
+    # print(" RF Accuracy: ", accuracy_score(y_test, yhat))
+    # print("prec, recall, f1: ", precision_recall_fscore_support(y_test, yhat, labels=[0,1,2,3], average="macro"))
+    # print(confusion_matrix(y_test, yhat, labels=[0,1,2,3]))
+    # #plot cm
+    # df_cm_rf = pd.DataFrame(confusion_matrix(y_test, yhat, labels=[0,1,2,3]), index=["happy","sad","angry","neutral"],
+    #                         columns=["happy", "sad", "angry", "neutral"])
+    # #plt.figure(figsize=(10, 7))
+    # sn.set(font_scale=1.4)
+    # sn.heatmap(df_cm_rf, annot=True,fmt="d", cmap="YlGnBu")
+    # plt.xlabel("Predicted")
+    # plt.ylabel("Actual")
+    # plt.title("Random Forest")
+    # plt.show()
+
+    print("fitting all data on rf...")
+    scaler.fit(x_features)
+    x_features = scaler.transform(x_features)
+    forest_search.fit(x_features, target.values)
+
+    best_random = forest_search.best_estimator_
+    yhat = best_random.predict(scaler.transform(x_test))
+    print(" ENTIRE RF Accuracy: ", accuracy_score(y_test, yhat))
+
+    # print("TREE ACCURACY: ", accuracy_score(y_test, tree_yhat))
+    # print("prec, recall, f1: ", precision_recall_fscore_support(y_test, tree_yhat, labels=[0,1,2,3], average="macro"))
+    # print(confusion_matrix(y_test, tree_yhat, labels = [0,1,2,3]))
+    # # plot cm
+    # df_cm_tree = pd.DataFrame(confusion_matrix(y_test, tree_yhat, labels=[0, 1, 2, 3]),
+    #                         index=["happy", "sad", "angry", "neutral"],
+    #                         columns=["happy", "sad", "angry", "neutral"])
+    # #plt.figure(figsize=(10, 7))
+    # sn.set(font_scale=1.4)
+    # sn.heatmap(df_cm_tree, annot=True, fmt="d", cmap="YlGnBu")
+    # plt.xlabel("Predicted")
+    # plt.ylabel("Actual")
+    # plt.title("Decision Tree")
+    # plt.show()
+    #
+    # print("SVC Accuracy: ", accuracy_score(y_test, svc_yhat))
+    # print("prec, recall, f1: ", precision_recall_fscore_support(y_test, svc_yhat, labels=[0,1,2,3], average="macro"))
+    # print(confusion_matrix(y_test, svc_yhat, labels=[0,1,2,3]))
+    # # plot cm
+    # df_cm_svc = pd.DataFrame(confusion_matrix(y_test, svc_yhat, labels=[0, 1, 2, 3]),
+    #                         index=["happy", "sad", "angry", "neutral"],
+    #                         columns=["happy", "sad", "angry", "neutral"])
+    # #plt.figure(figsize=(10, 7))
+    # sn.set(font_scale=1.4)
+    # sn.heatmap(df_cm_svc, annot=True, fmt="d", cmap="YlGnBu")
+    # plt.xlabel("Predicted")
+    # plt.ylabel("Actual")
+    # plt.title("Support Vector Machines")
+    # plt.show()
+
+
+
+
+
 
 
     #writing model and list of selected features to a pickle file in "Classification_Models directory
